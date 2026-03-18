@@ -1,55 +1,48 @@
-from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.contrib.auth import authenticate
-from ..models.sales_rep import SalesRepresentative
-from ..models.sales_manager import SalesManager
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth.models import User
+from ..models.sales_representative import SalesRepresentative
 
 class LoginView(APIView):
-    """
-    تسجيل الدخول للمناديب والمشرفين وسحب بيانات العهدة (اللوجستيات)
-    """
     def post(self, request):
-        phone = request.data.get('phone')
-        password = request.data.get('password')
+        phone_input = request.data.get('phone')
+        password_input = request.data.get('password')
 
-        # 1. التحقق من المستخدم في Django Auth
-        user = authenticate(username=phone, password=password)
+        try:
+            # 1. البحث عن المندوب برقم التليفون مباشرة من جدول المناديب
+            rep = SalesRepresentative.objects.get(phone=phone_input)
+            user = rep.user # الحصول على المستخدم المرتبط به
 
-        if user is not None:
-            if not user.is_active:
-                return Response({"message": "الحساب معطل، راجع الإدارة"}, status=status.HTTP_403_FORBIDDEN)
+            # 2. التحقق من كلمة المرور
+            if user.check_password(password_input):
+                if not user.is_active:
+                    return Response({"status": "error", "message": "الحساب معطل"}, status=403)
+                
+                return Response({
+                    "status": "success",
+                    "role": "sales_rep",
+                    "fullname": user.get_full_name() or user.username,
+                    "user_id": user.id,
+                    "data": {
+                        "rep_code": rep.rep_code,
+                        "phone": rep.phone,
+                        "insurance_points": str(rep.insurance_points),
+                    }
+                })
+        except SalesRepresentative.DoesNotExist:
+            # لو مالقاش مندوب، ممكن نجرب نشوف هل هو "أدمن" داخل بالـ username؟
+            try:
+                user = User.objects.get(username=phone_input)
+                if user.check_password(password_input):
+                    return Response({
+                        "status": "success",
+                        "role": "admin",
+                        "fullname": "المدير العام",
+                        "user_id": user.id,
+                        "data": {}
+                    })
+            except User.DoesNotExist:
+                pass
 
-            response_data = {
-                "status": "success",
-                "user_id": user.id,
-                "fullname": user.get_full_name() or user.username,
-                "role": "unknown",
-                "data": {}
-            }
-
-            # 2. تحديد نوع الحساب وسحب بيانات العهدة
-            # هل هو مندوب؟
-            if hasattr(user, 'sales_rep_profile'):
-                profile = user.sales_rep_profile
-                response_data["role"] = "sales_rep"
-                response_data["data"] = {
-                    "rep_code": profile.rep_code,
-                    "insurance_points": float(profile.insurance_points),
-                    "address": profile.address,
-                    "phone": profile.phone
-                }
-            
-            # هل هو مدير أو مشرف؟
-            elif hasattr(user, 'sales_manager_profile'):
-                profile = user.sales_manager_profile
-                response_data["role"] = profile.role
-                response_data["data"] = {
-                    "role_display": profile.get_role_display(),
-                    "phone": profile.phone,
-                    "geographic_area": profile.geographic_area
-                }
-
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        return Response({"status": "error", "message": "بيانات الدخول غير صحيحة"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"status": "error", "message": "بيانات الدخول غير صحيحة"}, status=401)
