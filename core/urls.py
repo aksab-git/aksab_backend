@@ -1,9 +1,8 @@
-from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
+from .views.auth_views import RegisterDelegateView # استدعاء مباشر من الملف
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    # ده السطر اللي هيربط السيرفر بتطبيق اللوجستيات
-    path('api/logistics/', include('logistics.urls')), 
+    # هنشغل دي بس دلوقتي عشان نتأكد إن السيرفر ققام
+    path('register/', RegisterDelegateView.as_view(), name='register_delegate'),
 ]
 
