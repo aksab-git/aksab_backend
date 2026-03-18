@@ -1,3 +1,3 @@
-from .store import Store # لو عندك موديل Store في ملف store.py
-from .profile import Profile
-
+from .sales_rep import SalesRepresentative
+from .sales_manager import SalesManager
+# لو عندك موديلات تانية في المجلد ضيفها هنا بنفس الطريقة

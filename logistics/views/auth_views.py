@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
-from ..models.sales_representative import SalesRepresentative
+from ..models import SalesRepresentative 
 
 class LoginView(APIView):
     def post(self, request):
@@ -10,11 +10,10 @@ class LoginView(APIView):
         password_input = request.data.get('password')
 
         try:
-            # 1. البحث عن المندوب برقم التليفون مباشرة من جدول المناديب
+            # البحث برقم الهاتف في بروفايل المندوب (حقل phone في موديل SalesRepresentative)
             rep = SalesRepresentative.objects.get(phone=phone_input)
-            user = rep.user # الحصول على المستخدم المرتبط به
+            user = rep.user
 
-            # 2. التحقق من كلمة المرور
             if user.check_password(password_input):
                 if not user.is_active:
                     return Response({"status": "error", "message": "الحساب معطل"}, status=403)
@@ -22,16 +21,16 @@ class LoginView(APIView):
                 return Response({
                     "status": "success",
                     "role": "sales_rep",
-                    "fullname": user.get_full_name() or user.username,
+                    "fullname": f"{user.first_name} {user.last_name}" if user.first_name else user.username,
                     "user_id": user.id,
                     "data": {
                         "rep_code": rep.rep_code,
                         "phone": rep.phone,
-                        "insurance_points": str(rep.insurance_points),
+                        "insurance_points": str(rep.insurance_points), # تأمين عهدة الطلب
                     }
                 })
         except SalesRepresentative.DoesNotExist:
-            # لو مالقاش مندوب، ممكن نجرب نشوف هل هو "أدمن" داخل بالـ username؟
+            # محاولة دخول كـ SuperAdmin بالـ Username (للمديرين)
             try:
                 user = User.objects.get(username=phone_input)
                 if user.check_password(password_input):
