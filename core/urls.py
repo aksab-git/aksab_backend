@@ -1,8 +1,7 @@
-from django.urls import path
-from .views.auth_views import RegisterDelegateView # استدعاء مباشر من الملف
+from django.contrib import admin
+from django.urls import path, include
 
 urlpatterns = [
-    # هنشغل دي بس دلوقتي عشان نتأكد إن السيرفر ققام
-    path('register/', RegisterDelegateView.as_view(), name='register_delegate'),
+    path('admin/', admin.site.urls),
+    path('api/logistics/', include('logistics.urls')),
 ]
-
