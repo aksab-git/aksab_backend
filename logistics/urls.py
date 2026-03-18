@@ -1,6 +1,6 @@
 from django.urls import path
-from logistics.views.auth_views import RegisterDelegateView
+from .views import LoginView
 
 urlpatterns = [
-    path('register/', RegisterDelegateView.as_view(), name='register_delegate'),
+    path('login/', LoginView.as_view(), name='api_login'),
 ]

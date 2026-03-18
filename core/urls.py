@@ -3,5 +3,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/logistics/', include('logistics.urls')),
+    path('logistics/', include('logistics.urls')), # شيلنا كلمة api/ من هنا
 ]
