@@ -5,9 +5,11 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- إعدادات الأمان (Security) ---
-SECRET_KEY = 'django-insecure-your-secret-key-here' # غيرها لو عندك مفتاح خاص
-DEBUG = True # خليها True عشان نعرف الأخطاء حالياً
-ALLOWED_HOSTS = ['Aksab.pythonanywhere.com', 'localhost', '127.0.0.1']
+SECRET_KEY = 'django-insecure-your-secret-key-here' 
+DEBUG = True # خليها True حالياً عشان تظهر لنا أي أخطاء في الكونسول
+
+# تأكد من كتابة الدومين بحروف صغيرة كما هو في المتصفح
+ALLOWED_HOSTS = ['aksab.pythonanywhere.com', 'localhost', '127.0.0.1']
 
 # --- التطبيقات (Apps) ---
 INSTALLED_APPS = [
@@ -19,25 +21,27 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     # المكتبات الخارجية
-    'rest_framework',        # للتعامل مع الـ APIs
-    'corsheaders',           # عشان يسمح للموبايل يكلم السيرفر
+    'rest_framework',        
+    'corsheaders',           
     
-    # تطبيقنا الأساسي
-    'logistics.apps.LogisticsConfig', 
+    # تطبيق اللوجستيات الخاص بك
+    'logistics.apps.LogisticsConfig',
 ]
 
-# --- الـ Middleware (الترتيب مهم جداً هنا) ---
+# --- الـ Middleware (الترتيب مهم جداً) ---
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', # لازم يكون أول واحد
-    'django.middleware.common.CommonMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # يجب أن يكون الأول
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'aksab_project.urls'
+# المسار الصحيح لعناوين الـ URLs (تعديل من aksab_project إلى core)
+ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
     {
@@ -55,9 +59,10 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'aksab_project.wsgi.application'
+# المسار الصحيح لتطبيق الـ WSGI (تعديل من aksab_project إلى core)
+WSGI_APPLICATION = 'core.wsgi.application'
 
-# --- قاعدة البيانات (SQLite حالياً للانتقال السهل) ---
+# --- قاعدة البيانات ---
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -65,18 +70,19 @@ DATABASES = {
     }
 }
 
-# --- إعدادات الـ CORS (عشان تحل مشكلة الـ HTML اللي ظهرت في الفلاتر) ---
-CORS_ALLOW_ALL_ORIGINS = True # بنسمح لأي جهاز يكلم السيرفر حالياً للتجربة
+# --- إعدادات الـ CORS ---
+# بنسمح للموبايل (Flutter) يكلم السيرفر بدون قيود حالياً
+CORS_ALLOW_ALL_ORIGINS = True 
 CORS_ALLOW_CREDENTIALS = True
 
 # --- إعدادات الـ REST Framework ---
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny', # بنفتحها عشان نسجل أول مندوب بسهولة
+        'rest_framework.permissions.AllowAny', 
     ]
 }
 
-# --- إعدادات اللغة والوقت (مظبوطة لمصر/السعودية) ---
+# --- إعدادات اللغة والوقت ---
 LANGUAGE_CODE = 'ar-eg'
 TIME_ZONE = 'Africa/Cairo'
 USE_I18N = True
