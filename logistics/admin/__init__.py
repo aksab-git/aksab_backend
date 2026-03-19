@@ -16,3 +16,5 @@ admin.site.register(User, CustomUserAdmin)
 admin.site.register(SalesRepresentative)
 admin.site.register(SalesManager)
 # admin.site.register(Store, StoreAdmin)
+from .inventory_admin import WarehouseAdmin, InventoryItemAdmin
+
