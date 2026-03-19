@@ -1,6 +1,8 @@
 from django.db import models
 # استدعاء موديل المندوب من ملفه المجاور
-from .sales_rep import SalesRepresentative 
+from .sales_rep import SalesRepresentative
+# استدعاء موديل المنتجات الجديد (تأكد من إنشاء ملف products.py)
+from .products import Product
 
 class Warehouse(models.Model):
     MAIN_WH = 'MAIN'
@@ -13,7 +15,7 @@ class Warehouse(models.Model):
     name = models.CharField(max_length=150, verbose_name="اسم المخزن/السيارة")
     warehouse_type = models.CharField(max_length=10, choices=TYPES, default=MAIN_WH)
     
-    # الربط بموديل SalesRepresentative اللي شفناه في ملف sales_rep.py
+    # الربط بموديل SalesRepresentative
     assigned_rep = models.OneToOneField(
         SalesRepresentative, 
         on_delete=models.SET_NULL, 
@@ -34,10 +36,19 @@ class Warehouse(models.Model):
         return f"{self.name} - {self.get_warehouse_type_display()}"
 
 class InventoryItem(models.Model):
-    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='inventory_items')
-    # تأكد من اسم التطبيق هنا (لو التطبيق اسمه logistics يبقى logistics.Product)
-    # أو استدعي الموديل لو هو في core
-    product = models.ForeignKey('core.Product', on_delete=models.CASCADE) 
+    warehouse = models.ForeignKey(
+        Warehouse, 
+        on_delete=models.CASCADE, 
+        related_name='inventory_items',
+        verbose_name="المخزن"
+    )
+    # الربط المباشر بموديل المنتج الجديد
+    product = models.ForeignKey(
+        Product, 
+        on_delete=models.CASCADE, 
+        related_name='stock_records',
+        verbose_name="المنتج"
+    )
     stock_quantity = models.IntegerField(default=0, verbose_name="الكمية الحالية")
     last_updated = models.DateTimeField(auto_now=True)
 

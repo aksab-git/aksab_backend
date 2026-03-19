@@ -20,3 +20,12 @@ class InventoryItemAdmin(admin.ModelAdmin):
     # إمكانية تعديل الكمية مباشرة من الجدول (للجرد السريع)
     list_editable = ('stock_quantity',) 
 
+from django.contrib import admin
+from ..models.products import Product
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ('name', 'sku', 'unit', 'selling_price', 'is_active')
+    search_fields = ('name', 'sku', 'barcode')
+    list_filter = ('unit', 'is_active')
+
