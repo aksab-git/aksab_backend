@@ -1,5 +1,8 @@
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
+# استيراد الموديلات من الملفات الأخرى داخل نفس المجلد (Relative Import)
+from .mainInventory import Warehouse, InventoryItem
+from .products import Product
 
 class StockTransfer(models.Model):
     STATUS_CHOICES = [
@@ -10,9 +13,12 @@ class StockTransfer(models.Model):
     ]
 
     transfer_no = models.CharField(max_length=50, unique=True, verbose_name="رقم إذن التحويل")
-    sender_warehouse = models.ForeignKey('Warehouse', related_name='outgoing_transfers', on_get=models.CASCADE)
-    receiver_warehouse = models.ForeignKey('Warehouse', related_name='incoming_transfers', on_get=models.CASCADE)
-    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    
+    # تصحيح on_delete هنا
+    sender_warehouse = models.ForeignKey(Warehouse, related_name='outgoing_transfers', on_delete=models.CASCADE)
+    receiver_warehouse = models.ForeignKey(Warehouse, related_name='incoming_transfers', on_delete=models.CASCADE)
+    
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(verbose_name="الكمية")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     
@@ -20,21 +26,20 @@ class StockTransfer(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.pk:
-            # عند إنشاء التحويل أول مرة
+            # إنشاء جديد
             super().save(*args, **kwargs)
         else:
+            # تحديث حالة موجودة
             old_instance = StockTransfer.objects.get(pk=self.pk)
             
-            # منع التعديل بعد الاكتمال
             if old_instance.status == 'COMPLETED':
                 raise ValidationError("عفواً، لا يمكن تعديل عهدة تم استلامها وإغلاقها.")
 
+            # تنفيذ العمليات المخزنية داخل Transaction لضمان سلامة البيانات
             with transaction.atomic():
-                # الحالة 1: من PENDING إلى IN_TRANSIT (خروج من المخزن لعهدة الطريق)
                 if old_instance.status == 'PENDING' and self.status == 'IN_TRANSIT':
                     self.process_departure()
 
-                # الحالة 2: من IN_TRANSIT إلى COMPLETED (تأكيد الاستلام النهائي)
                 elif old_instance.status == 'IN_TRANSIT' and self.status == 'COMPLETED':
                     self.process_arrival()
 
@@ -47,14 +52,14 @@ class StockTransfer(models.Model):
             product=self.product
         )
         if sender_stock.stock_quantity < self.quantity:
-            raise ValueError(f"الرصيد في {self.sender_warehouse.name} غير كافٍ.")
+            raise ValueError(f"الرصيد في {self.sender_warehouse.name} غير كافٍ للتحويل.")
         
         sender_stock.stock_quantity -= self.quantity
         sender_stock.save()
 
     def process_arrival(self):
         """إضافة الكمية للمخزن المستلم عند تأكيد الاستلام"""
-        receiver_stock, _ = InventoryItem.objects.select_for_update().get_or_create(
+        receiver_stock, created = InventoryItem.objects.select_for_update().get_or_create(
             warehouse=self.receiver_warehouse, 
             product=self.product,
             defaults={'stock_quantity': 0}
@@ -65,3 +70,6 @@ class StockTransfer(models.Model):
     class Meta:
         verbose_name = "تحويل عهدة"
         verbose_name_plural = "تحويلات العهد"
+
+    def __str__(self):
+        return f"تحويل {self.transfer_no} - {self.product.name}"
