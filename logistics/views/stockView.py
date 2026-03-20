@@ -7,24 +7,23 @@ from ..serializers import InventoryItemSerializer, StockTransferSerializer
 class MyInventoryViewSet(viewsets.ReadOnlyModelViewSet):
     """
     يعرض للمندوب البضاعة الموجودة في عهدته (سيارته) حالياً.
-    تم تحديثها لتقبل الفلترة بـ rep_code لضمان دقة البيانات وتخطي أخطاء الصلاحيات.
+    يعتمد على الفلترة بـ rep_code لضمان دقة البيانات المرتبطة بمخزن الـ VAN.
     """
     serializer_class = InventoryItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        # 1. محاولة جلب كود المندوب من الرابط (Query Params) المرسل من فلاتر
         rep_code = self.request.query_params.get('rep_code')
 
         if rep_code:
-            # البحث عن المخزن المرتبط بهذا الكود تحديداً
+            # البحث عن المخزن المرتبط بالكود المرسل
             return InventoryItem.objects.filter(
                 warehouse__assigned_rep__rep_code=rep_code,
-                warehouse__warehouse_type='VAN' # ضمان أننا نعرض عهدة السيارة فقط
+                warehouse__warehouse_type='VAN'
             )
 
-        # 2. إذا لم يرسل الكود، نبحث عن المخزن المرتبط بحساب المستخدم المسجل
+        # البحث عن المخزن المرتبط بالمستخدم المسجل حالياً
         return InventoryItem.objects.filter(
             warehouse__assigned_rep__user=user,
             warehouse__warehouse_type='VAN'
@@ -33,7 +32,7 @@ class MyInventoryViewSet(viewsets.ReadOnlyModelViewSet):
 class MyTransfersViewSet(viewsets.ModelViewSet):
     """
     يعرض "تحويلات العهد" المرسلة للمندوب ليقوم بتأكيد استلامها.
-    تسمح للمندوب برؤية الشحنات التي في الطريق (IN_TRANSIT) ليقوم بتأكيدها.
+    تسمح للمندوب برؤية الشحنات (العهد المعلقة) التي في الطريق (IN_TRANSIT).
     """
     serializer_class = StockTransferSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -42,7 +41,7 @@ class MyTransfersViewSet(viewsets.ModelViewSet):
         user = self.request.user
         rep_code = self.request.query_params.get('rep_code')
 
-        # الفلترة بناءً على المخزن المستلم الذي يخص المندوب
+        # فلترة التحويلات حيث يكون مخزن المندوب هو الـ Receiver
         if rep_code:
             queryset = StockTransfer.objects.filter(
                 receiver_warehouse__assigned_rep__rep_code=rep_code
@@ -52,18 +51,44 @@ class MyTransfersViewSet(viewsets.ModelViewSet):
                 receiver_warehouse__assigned_rep__user=user
             )
         
-        # ترتيب النتائج: الأحدث يظهر أولاً
-        return queryset.order_by('-created_at')
+        # استبعاد التحويلات الملغية وعرض الأحدث أولاً
+        return queryset.exclude(status='CANCELLED').order_by('-created_at')
 
     def update(self, request, *args, **kwargs):
         """
-        تخصيص عملية التحديث للسماح للمندوب بتغيير الحالة إلى COMPLETED فقط.
+        تخصيص عملية التحديث (تأكيد العهدة):
+        1. التحقق من أن الحالة الحالية للطلب هي 'IN_TRANSIT'.
+        2. تحديث الحالة فقط إلى 'COMPLETED' لتشغيل منطق الـ save في الموديل.
+        3. منع تعديل أي حقول أخرى (الكمية، الصنف، المخازن).
         """
         instance = self.get_object()
-        # إذا أراد المندوب تأكيد الاستلام، نقوم بتحديث الحالة
-        if request.data.get('status') == 'COMPLETED':
-            instance.status = 'COMPLETED'
-            instance.save() # سيقوم الموديل تلقائياً بنقل الكميات كما برمجناه في save()
-            return Response({'status': 'تأكيد العهدة: تم استلام الأمانات بنجاح'}, status=status.HTTP_200_OK)
+
+        # 🛡️ صمام أمان 1: لا يمكن استلام طلب إلا لو كان في الطريق
+        if instance.status != 'IN_TRANSIT':
+            return Response(
+                {'error': 'عفواً، لا يمكن تأكيد استلام عهدة ليست في الطريق (In Transit) حالياً.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 🛡️ صمام أمان 2: التأكد أن المندوب يرسل طلب إغلاق العهدة فقط
+        requested_status = request.data.get('status')
+        if requested_status == 'COMPLETED':
+            try:
+                # تحديث حقل الحالة فقط
+                instance.status = 'COMPLETED'
+                # حفظ الـ instance سيؤدي لتشغيل logic الخصم والإضافة في الموديل أوتوماتيكياً
+                instance.save() 
+                
+                return Response({
+                    'message': 'تأكيد العهدة: تم استلام الأمانات بنجاح، وتحديث الأرصدة المخزنية.',
+                    'transfer_no': instance.transfer_no,
+                    'status': instance.status
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-        return super().update(request, *args, **kwargs)
+        # 🛡️ صمام أمان 3: منع أي محاولة لتعديل بيانات أخرى (مثل الكمية أو الصنف)
+        return Response(
+            {'error': 'غير مسموح بتعديل بيانات العهدة الأصلية. يمكنك فقط تأكيد الاستلام.'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
