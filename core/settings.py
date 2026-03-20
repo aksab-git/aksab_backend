@@ -4,6 +4,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-your-secret-key-here'
 DEBUG = True
+
+# إضافة النطاقات المسموح لها بالاتصال بالسيرفر
 ALLOWED_HOSTS = ['aksab.pythonanywhere.com', 'localhost', '127.0.0.1']
 
 INSTALLED_APPS = [
@@ -13,13 +15,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # المكتبات الأساسية لـ API أكسب
     'rest_framework',
+    'rest_framework.authtoken',  # 🔑 ضروري جداً لتوليد مفاتيح الدخول
     'corsheaders',
+    
+    # تطبيق اللوجستيات الخاص بك
     'logistics',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # يجب أن يكون في الأعلى
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -69,16 +76,20 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# إعدادات الأمان لفك حظر الـ 403 والـ CSRF
-CORS_ALLOW_ALL_ORIGINS = True
+# --- إعدادات الأمان والاتصال (CORS & CSRF) ---
+CORS_ALLOW_ALL_ORIGINS = True # للسماح لتطبيقات فلاتر بالاتصال بدون قيود متصفح
 CSRF_TRUSTED_ORIGINS = ['https://aksab.pythonanywhere.com']
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_HTTPONLY = False  # لسماح للمتصفح بقراءة الكوكي لو لزم الأمر
+CSRF_COOKIE_HTTPONLY = False 
 
-# إعدادات REST Framework
+# --- إعدادات REST Framework المتقدمة ---
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication', # 🔑 تمكين نظام المفاتيح
+        'rest_framework.authentication.SessionAuthentication',
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.AllowAny', # السماح بالوصول للـ API (يتم تخصيصه لاحقاً)
     ],
 }
