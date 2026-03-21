@@ -2,12 +2,13 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views.auth_views import LoginView
 from .views.work_day_views import WorkDayAPIView
-# استيراد الـ ViewSets (تأكد من إضافة AllProductsViewSet في الـ __init__.py الخاص بمجلد views)
+
+# استيراد الـ ViewSets الموجودة حالياً فقط
 from .views import (
     MyInventoryViewSet, 
     MyTransfersViewSet, 
-    StockTransferViewSet, 
-    AllProductsViewSet  # الـ View الجديد اللي ضفناه في stockView
+    StockTransferViewSet
+    # تم حذف AllProductsViewSet لحل مشكلة الـ Import
 )
 
 # إعداد الـ Router
@@ -21,9 +22,6 @@ router.register(r'my-transfers', MyTransfersViewSet, basename='my-transfers')
 
 # 3. نظام طلبات التحميل الجديد (إرسال طلب عهدة متعدد الأصناف)
 router.register(r'stock-transfers', StockTransferViewSet, basename='stock-transfer')
-
-# 4. كتالوج المنتجات الشامل (عشان المندوب يبحث ويختار أصناف يطلبها)
-router.register(r'all-products', AllProductsViewSet, basename='all-products')
 
 urlpatterns = [
     # روابط الـ Auth والـ WorkDay
