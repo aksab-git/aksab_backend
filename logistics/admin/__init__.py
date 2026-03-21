@@ -3,18 +3,28 @@ from django.contrib.auth.models import User
 from .sales_admin import CustomUserAdmin
 from ..models.sales_rep import SalesRepresentative
 from ..models.sales_manager import SalesManager
-# from ..models.store import Store
-# from .store_admin import StoreAdmin
+from ..models.transactions import StockTransfer, TransferItem # استيراد الموديلات الجديدة
 
-# إلغاء التسجيل القديم وتسجيل الجديد المنظم
+# 1. إعادة تسجيل المستخدمين بصلاحيات مخصصة
 try:
     admin.site.unregister(User)
 except admin.sites.NotRegistered:
     pass
-
 admin.site.register(User, CustomUserAdmin)
-admin.site.register(SalesRepresentative)
-admin.site.register(SalesManager)
-# admin.site.register(Store, StoreAdmin)
-from .inventory_admin import WarehouseAdmin, InventoryItemAdmin
 
+# 2. تسجيل مندوبي المبيعات والمديرين (تجنب التكرار)
+try:
+    admin.site.unregister(SalesRepresentative)
+except admin.sites.NotRegistered:
+    pass
+admin.site.register(SalesRepresentative)
+
+try:
+    admin.site.unregister(SalesManager)
+except admin.sites.NotRegistered:
+    pass
+admin.site.register(SalesManager)
+
+# 3. استيراد تسجيلات المخازن والتحويلات من الملفات الفرعية
+# السطر ده هينده على inventory_admin اللي إحنا لسه مصلحينه
+from .inventory_admin import WarehouseAdmin, InventoryItemAdmin, StockTransferAdmin
