@@ -2,28 +2,34 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views.auth_views import LoginView
 from .views.work_day_views import WorkDayAPIView
-# استيراد الـ ViewSets من الـ __init__ اللي جهزناه
-from .views import MyInventoryViewSet, MyTransfersViewSet, StockTransferViewSet
+# استيراد الـ ViewSets (تأكد من إضافة AllProductsViewSet في الـ __init__.py الخاص بمجلد views)
+from .views import (
+    MyInventoryViewSet, 
+    MyTransfersViewSet, 
+    StockTransferViewSet, 
+    AllProductsViewSet  # الـ View الجديد اللي ضفناه في stockView
+)
 
-# إعداد الـ Router للـ ViewSets
+# إعداد الـ Router
 router = DefaultRouter()
 
-# 1. جرد عهدة السيارة الحالي
+# 1. جرد عهدة السيارة الحالي (البضاعة اللي معاه فعلياً)
 router.register(r'my-inventory', MyInventoryViewSet, basename='my-inventory')
 
-# 2. عرض التحويلات (القديم - صنف واحد - للتوافق مع النسخ الحالية لو لزم الأمر)
+# 2. عرض التحويلات القديمة (للتوافق)
 router.register(r'my-transfers', MyTransfersViewSet, basename='my-transfers')
 
-# 3. نظام طلبات التحميل الجديد (الأصناف المتعددة + الاستلام بـ Checkbox)
-# المسار ده اللي المندوب هيستخدمه لبعت طلب تحميل (POST) أو رؤية أصناف الإذن (GET)
+# 3. نظام طلبات التحميل الجديد (إرسال طلب عهدة متعدد الأصناف)
 router.register(r'stock-transfers', StockTransferViewSet, basename='stock-transfer')
+
+# 4. كتالوج المنتجات الشامل (عشان المندوب يبحث ويختار أصناف يطلبها)
+router.register(r'all-products', AllProductsViewSet, basename='all-products')
 
 urlpatterns = [
     # روابط الـ Auth والـ WorkDay
     path('login/', LoginView.as_view(), name='login'),
     path('work-day/', WorkDayAPIView.as_view(), name='work_day_api'),
 
-    # دمج روابط الـ Router تلقائياً (المخازن، التحويلات، طلبات التحميل)
+    # دمج روابط الـ Router تلقائياً
     path('', include(router.urls)),
 ]
-
