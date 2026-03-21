@@ -1,65 +1,28 @@
 from django.contrib import admin
-from django.utils.html import format_html
-from django import forms
-from ..models.mainInventory import Warehouse, InventoryItem
-from ..models.products import Product
-from ..models.transactions import StockTransfer, StockTransferItem  # أضفنا استيراد StockTransferItem
+from ..models.transactions import StockTransfer, TransferItem  # تأكد من الاسم TransferItem
 
-# --- 1. إدارة المنتجات ---
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'sku', 'unit', 'selling_price', 'is_active')
-    search_fields = ('name', 'sku', 'barcode')
-    list_filter = ('unit', 'is_active')
-
-# --- 2. إدارة المخازن (الرئيسي والسيارات) ---
-class InventoryInline(admin.TabularInline):
-    model = InventoryItem
-    extra = 1
-    readonly_fields = ('last_updated',)
-
-@admin.register(Warehouse)
-class WarehouseAdmin(admin.ModelAdmin):
-    list_display = ('name', 'warehouse_type', 'assigned_rep', 'is_active', 'view_inventory_link')
-    list_filter = ('warehouse_type', 'is_active')
-    search_fields = ('name', 'assigned_rep__user__first_name')
-    raw_id_fields = ('assigned_rep',)
-    inlines = [InventoryInline]
-
-    def view_inventory_link(self, obj):
-        return format_html('<a href="/admin/logistics/inventoryitem/?warehouse__id__exact={}">عرض الجرد 📦</a>', obj.id)
-    view_inventory_link.short_description = "محتويات المخزن"
-
-# --- 3. إدارة الجرد (تأمين العهدة) ---
-@admin.register(InventoryItem)
-class InventoryItemAdmin(admin.ModelAdmin):
-    list_display = ('product', 'warehouse', 'stock_quantity', 'colored_status', 'last_updated')
-    list_filter = ('warehouse', 'warehouse__warehouse_type', 'product')
-    search_fields = ('product__name', 'warehouse__name')
-    list_editable = ('stock_quantity',)
-
-    def colored_status(self, obj):
-        if obj.stock_quantity <= 0:
-            return format_html('<span style="color: red; font-weight: bold;">نفذت الكمية ⚠️</span>')
-        elif obj.stock_quantity <= 10:
-            return format_html('<span style="color: orange; font-weight: bold;">كمية منخفضة 📉</span>')
-        return format_html('<span style="color: green; font-weight: bold;">متوفر ✅</span>')
-    colored_status.short_description = "حالة المخزون"
-
-# --- 4. إدارة تحويلات العهد (النظام الجديد المتعدد الأصناف) ---
-
-# إضافة الأصناف كـ Inline عشان تظهر جوه الطلب
-class StockTransferItemInline(admin.TabularInline):
-    model = StockTransferItem
+class TransferItemInline(admin.TabularInline):
+    model = TransferItem
     extra = 0
-    # جعل الحقول للقراءة فقط لو أردت حماية البيانات بعد الإنشاء
-    # readonly_fields = ('product', 'quantity', 'is_received')
 
 @admin.register(StockTransfer)
 class StockTransferAdmin(admin.ModelAdmin):
-    # شيلنا product و quantity من هنا لأنهم بقوا في جدول منفصل
-    list_display = ('transfer_no', 'sender_warehouse', 'receiver_representative', 'status', 'created_at')
+    # الحقول الحقيقية الموجودة في الموديل الجديد
+    list_display = ('transfer_no', 'requested_by', 'sender_warehouse', 'status', 'created_at')
     list_filter = ('status', 'sender_warehouse')
-    search_fields = ('transfer_no', 'receiver_representative__rep_code')
-    list_editable = ('status',)
-    inlines = [StockTransferItemInline] # ده اللي بيعرض الأصناف تحت بعضها جوه الطلب
+    search_fields = ('transfer_no', 'requested_by__user__username')
+    inlines = [TransferItemInline]
+from django.contrib import admin
+from ..models.transactions import StockTransfer, TransferItem  # تأكد من الاسم TransferItem
+
+class TransferItemInline(admin.TabularInline):
+    model = TransferItem
+    extra = 0
+
+@admin.register(StockTransfer)
+class StockTransferAdmin(admin.ModelAdmin):
+    # الحقول الحقيقية الموجودة في الموديل الجديد
+    list_display = ('transfer_no', 'requested_by', 'sender_warehouse', 'status', 'created_at')
+    list_filter = ('status', 'sender_warehouse')
+    search_fields = ('transfer_no', 'requested_by__user__username')
+    inlines = [TransferItemInline]
