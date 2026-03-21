@@ -1,13 +1,30 @@
 from django.contrib import admin
+from django.utils.html import format_html
+from ..models.mainInventory import Warehouse, InventoryItem
 from ..models.transactions import StockTransfer, TransferItem
 
-# إضافة الأصناف كـ Inline داخل طلب التحويل
+# --- 1. Inlines لطلبات التحويل ---
 class TransferItemInline(admin.TabularInline):
     model = TransferItem
     extra = 0
     fields = ('product', 'quantity', 'unit_at_transfer', 'is_received')
 
-# السطر ده بيحل مشكلة AlreadyRegistered: بيمسح أي تسجيل قديم لو وجد
+# --- 2. إدارة المخازن ---
+@admin.register(Warehouse)
+class WarehouseAdmin(admin.ModelAdmin):
+    list_display = ('name', 'warehouse_type', 'assigned_rep', 'is_active')
+    list_filter = ('warehouse_type', 'is_active')
+    search_fields = ('name',)
+
+# --- 3. إدارة الجرد ---
+@admin.register(InventoryItem)
+class InventoryItemAdmin(admin.ModelAdmin):
+    list_display = ('product', 'warehouse', 'stock_quantity', 'last_updated')
+    list_filter = ('warehouse', 'product')
+    search_fields = ('product__name', 'warehouse__name')
+
+# --- 4. إدارة تحويلات العهد (النظام الجديد) ---
+# حماية من التكرار
 try:
     admin.site.unregister(StockTransfer)
 except admin.sites.NotRegistered:
@@ -15,18 +32,8 @@ except admin.sites.NotRegistered:
 
 @admin.register(StockTransfer)
 class StockTransferAdmin(admin.ModelAdmin):
-    # الحقول الحقيقية التي قمنا بتعريفها في الموديل الأخير
     list_display = ('transfer_no', 'requested_by', 'sender_warehouse', 'status', 'created_at')
     list_filter = ('status', 'sender_warehouse', 'created_at')
-    search_fields = ('transfer_no', 'requested_by__user__username', 'requested_by__rep_code')
-    list_editable = ('status',) # لإتاحة الموافقة السريعة من جدول العرض
+    search_fields = ('transfer_no', 'requested_by__user__username')
+    list_editable = ('status',)
     inlines = [TransferItemInline]
-    
-    # تحسين عرض الأسماء في لوحة التحكم
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('requested_by__user', 'sender_warehouse')
-
-@admin.register(TransferItem)
-class TransferItemAdmin(admin.ModelAdmin):
-    list_display = ('product', 'transfer', 'quantity', 'is_received')
-    list_filter = ('is_received', 'product')
