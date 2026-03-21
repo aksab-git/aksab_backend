@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django import forms
 from ..models.mainInventory import Warehouse, InventoryItem
 from ..models.products import Product
-from ..models.transactions import StockTransfer
+from ..models.transactions import StockTransfer, StockTransferItem  # أضفنا استيراد StockTransferItem
 
 # --- 1. إدارة المنتجات ---
 @admin.register(Product)
@@ -33,11 +33,10 @@ class WarehouseAdmin(admin.ModelAdmin):
 # --- 3. إدارة الجرد (تأمين العهدة) ---
 @admin.register(InventoryItem)
 class InventoryItemAdmin(admin.ModelAdmin):
-    # تم تعديل list_display ليشمل stock_quantity مباشرة لحل مشكلة admin.E122
     list_display = ('product', 'warehouse', 'stock_quantity', 'colored_status', 'last_updated')
     list_filter = ('warehouse', 'warehouse__warehouse_type', 'product')
     search_fields = ('product__name', 'warehouse__name')
-    list_editable = ('stock_quantity',) # الآن سيعمل بدون أخطاء
+    list_editable = ('stock_quantity',)
 
     def colored_status(self, obj):
         if obj.stock_quantity <= 0:
@@ -47,11 +46,20 @@ class InventoryItemAdmin(admin.ModelAdmin):
         return format_html('<span style="color: green; font-weight: bold;">متوفر ✅</span>')
     colored_status.short_description = "حالة المخزون"
 
-# --- 4. إدارة تحويلات العهد (الربط الأوتوماتيكي) ---
+# --- 4. إدارة تحويلات العهد (النظام الجديد المتعدد الأصناف) ---
+
+# إضافة الأصناف كـ Inline عشان تظهر جوه الطلب
+class StockTransferItemInline(admin.TabularInline):
+    model = StockTransferItem
+    extra = 0
+    # جعل الحقول للقراءة فقط لو أردت حماية البيانات بعد الإنشاء
+    # readonly_fields = ('product', 'quantity', 'is_received')
+
 @admin.register(StockTransfer)
 class StockTransferAdmin(admin.ModelAdmin):
-    list_display = ('id', 'sender_warehouse', 'receiver_warehouse', 'product', 'quantity', 'status', 'created_at')
-    list_filter = ('status', 'sender_warehouse', 'receiver_warehouse')
-    search_fields = ('product__name', 'sender_warehouse__name', 'receiver_warehouse__name')
-    list_editable = ('status',) # بمجرد تغييرها لـ COMPLETED يتم التحويل أوتوماتيكياً
-
+    # شيلنا product و quantity من هنا لأنهم بقوا في جدول منفصل
+    list_display = ('transfer_no', 'sender_warehouse', 'receiver_representative', 'status', 'created_at')
+    list_filter = ('status', 'sender_warehouse')
+    search_fields = ('transfer_no', 'receiver_representative__rep_code')
+    list_editable = ('status',)
+    inlines = [StockTransferItemInline] # ده اللي بيعرض الأصناف تحت بعضها جوه الطلب
